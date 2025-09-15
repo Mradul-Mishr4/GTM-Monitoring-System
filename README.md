@@ -243,9 +243,9 @@ module.exports = {
 
 | 📊 **Metric**     | 🟢 **Good** | 🟡 **Warning** | 🔴 **Critical** |
 | :---------------- | :---------: | :------------: | :-------------: |
-| CPU Usage         |   < 50ms    |    50-100ms    |     > 100ms     |
-| Script Evaluation |   < 100ms   |   100-300ms    |     > 300ms     |
-| Script Parse Time |   < 50ms    |    50-150ms    |     > 150ms     |
+| CPU Usage         |   < 500ms    |    500-1000ms    |     > 1000ms     |
+| Script Evaluation |   < 200ms   |   200-500ms    |     > 500ms     |
+
 
 ## 🤝 Contributing
 
