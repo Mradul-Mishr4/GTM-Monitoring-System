@@ -1,0 +1,71 @@
+version: "3.8"
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev.chrome
+      args:
+        NODE_ENV: development
+    container_name: gtm-site-speed-dev
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - PORT=3000
+      - CHROME_PATH=/usr/bin/google-chrome-stable
+      - CHROME_PATH_FALLBACK=/usr/bin/chromium
+      - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+      - WATCHPACK_POLLING=true
+      - CHOKIDAR_USEPOLLING=true
+      - CHROME_FLAGS=--headless --disable-gpu --no-sandbox --disable-setuid-sandbox --disable-dev-shm-usage --disable-extensions --disable-background-timer-throttling --disable-backgrounding-occluded-windows --disable-renderer-backgrounding
+    volumes:
+      - .:/app:cached
+      - /app/node_modules
+      - /app/.next
+    working_dir: /app
+    command: npm run dev
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "require('http').get('http://localhost:3000/', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    networks:
+      - gtm-network
+
+  # Production service (optional)
+  web-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NODE_ENV: production
+    container_name: gtm-site-speed-prod
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+      - CHROME_PATH=/usr/bin/chromium
+      - PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+    networks:
+      - gtm-network
+    profiles:
+      - production
+
+networks:
+  gtm-network:
+    driver: bridge
+
+volumes:
+  node_modules:
+  next_cache:

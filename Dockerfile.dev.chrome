@@ -1,0 +1,76 @@
+FROM node:20-bookworm
+
+# Set environment variables for better performance and security
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
+ENV CHROME_PATH=/usr/bin/chromium
+ENV NODE_ENV=development
+
+# Install system dependencies and Chrome/Chromium
+RUN apt-get update -qq && apt-get install -y --no-install-recommends \
+    wget \
+    gnupg \
+    ca-certificates \
+    curl \
+    fonts-liberation \
+    libasound2 \
+    libatk-bridge2.0-0 \
+    libatk1.0-0 \
+    libcups2 \
+    libdrm2 \
+    libgbm1 \
+    libgtk-3-0 \
+    libnss3 \
+    libxcomposite1 \
+    libxdamage1 \
+    libxrandr2 \
+    libxss1 \
+    libxtst6 \
+    lsb-release \
+    xdg-utils \
+    chromium \
+    chromium-driver \
+    && rm -rf /var/lib/apt/lists/*
+
+# Try to install Google Chrome as primary option, fallback to Chromium
+RUN wget -qO- https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-linux.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/google-linux.gpg] https://dl.google.com/linux/chrome/deb/ stable main" \
+      > /etc/apt/sources.list.d/google-chrome.list && \
+    apt-get update -qq && \
+    (apt-get install -y --no-install-recommends google-chrome-stable || echo "Google Chrome installation failed, using Chromium") && \
+    rm -rf /var/lib/apt/lists/*
+
+# Set Chrome path with proper fallback detection
+ENV CHROME_PATH=/usr/bin/google-chrome-stable
+ENV CHROME_PATH_FALLBACK=/usr/bin/chromium
+
+# Create non-root user for security
+RUN groupadd -r pptruser && useradd -r -g pptruser -G audio,video pptruser \
+    && mkdir -p /home/pptruser/Downloads /home/pptruser/.cache \
+    && chown -R pptruser:pptruser /home/pptruser
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --no-audit --no-fund
+
+# Copy application source
+COPY . .
+
+# Set proper ownership
+RUN chown -R pptruser:pptruser /app
+
+# Switch to non-root user
+USER pptruser
+
+# Expose port
+EXPOSE 3000
+
+# Health check for development
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+  CMD node -e "require('http').get('http://localhost:3000/', (res) => process.exit(res.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+
+# Start the development server
+CMD ["npm", "run", "dev"]
